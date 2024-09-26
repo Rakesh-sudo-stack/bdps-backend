@@ -12,7 +12,7 @@ const announcementsRouter = require('./routers/announcementsRouter.js');
 const noticeBoardRouter = require('./routers/noticeboard.js');
 
 const app = express();
-const port = 7070;
+const port = process.env.PORT || 7070;
 
 // Middlewares
 app.use(express.json());
