@@ -2,7 +2,6 @@ const nodemailer = require('nodemailer');
 
 const sendMail = async (email, subject, body) => {
     try {
-        let testAccount = await nodemailer.createTestAccount();
 
         // create reusable transporter object using the default SMTP transport
         let transporter = nodemailer.createTransport({
@@ -21,9 +20,9 @@ const sendMail = async (email, subject, body) => {
             subject,
             html: body,
         });
-        return 'Check your gmail';
+        return `Ask ${email} to check his gmail`;
     } catch (error) {
-        return 'Some error occured while sending mail'
+        return `${error}Some error occured while sending mail`
     }
 }
 

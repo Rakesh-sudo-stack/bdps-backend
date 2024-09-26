@@ -36,9 +36,7 @@ module.exports = mongoDBConnectionPromise.then((isConnected) => {
         required:true
       },
       token:{
-        type: String,
-        required: false,
-        unique: true
+        type: String
       }
     });
 
