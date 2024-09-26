@@ -87,13 +87,6 @@ function generateRandString(length) {
 
 // ADMIN LIST REQUEST
 router.get('/', async (req, res) => {
-    let auth = adminAuth(req.cookies.jwtbdps);
-    if (auth.status === 500) {
-        return res.status(500).json({
-            status: auth.status,
-            msg: auth.msg
-        })
-    }
     try {
         const admins = await models.admin.find().select({ _id: 0, password: 0 });
         res.status(200).json({
