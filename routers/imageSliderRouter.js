@@ -8,7 +8,7 @@ let models = {};
 
 // Importing models
 const setModels = () => {
-    require('../models/admins').then((data) => {
+    require('../models/admin').then((data) => {
         models.admin = data.model;
         console.log(data)
     })
