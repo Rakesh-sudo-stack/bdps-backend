@@ -329,6 +329,8 @@ router.delete('/:email', async (req, res) => {
 // LOGIN REQUEST
 router.post('/login', async (req, res) => {
 
+    console.log("Someone tried to login")
+
     const updateToken = async (token) => {
         const updatedUser = await models.admin.updateOne({ email: req.body.email }, { token }, { new: true })
         res.status(200).json({
