@@ -21,10 +21,10 @@ app.use(cors());
 app.use(fileUpload());
 
 //Using routers
-app.use('/admin', adminRouter);
-app.use('/images', imageSliderRouter);
-app.use('/announcements', announcementsRouter);
-app.use('/notice-board', noticeBoardRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/images', imageSliderRouter);
+app.use('/api/announcements', announcementsRouter);
+app.use('/api/notice-board', noticeBoardRouter);
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`)
