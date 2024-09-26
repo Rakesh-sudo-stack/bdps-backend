@@ -146,13 +146,6 @@ router.get('/email/:email', async (req, res) => {
 
 // ADD ADMIN REQUEST
 router.post('/', async (req, res) => {
-    let auth = adminAuth(req.cookies.jwtbdps);
-    if (auth.status === 500) {
-        return res.status(500).json({
-            status: auth.status,
-            msg: auth.msg
-        })
-    }
     console.log(req.body)
 
     const findUser = await models.admin.find({ email: req.body.email });
