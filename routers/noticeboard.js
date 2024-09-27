@@ -24,7 +24,8 @@ const adminAuth = (token) => {
             if (auth) {
                 return ({
                     status: 200,
-                    msg: 'Auth success'
+                    msg: 'Auth success',
+                    email: jwt.decode(token).email
                 })
             } else {
                 return ({
@@ -48,13 +49,14 @@ let router = express.Router();
 router.post('/', (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
     if (auth.status === 500) {
-        console.log('failed')
         return res.status(500).json({
             status: auth.status,
             msg: auth.msg
         })
     } 
     models.noticeboard.insertMany(req.body).then(() => {
+        console.log(`${auth.email} has uploaded notice`)
+        console.table(req.body)
         res.status(200).json({
             status: 200,
             msg: 'Notices Added'
@@ -69,14 +71,6 @@ router.post('/', (req, res) => {
 })
 
 router.post('/uploads',async (req,res)=>{
-    let auth = adminAuth(req.cookies.jwtbdps);
-    if (auth.status === 500) {
-        console.log('failed')
-        return res.status(500).json({
-            status: auth.status,
-            msg: auth.msg
-        })
-    }
     try {
         const notices = await models.noticeboard.find();
         res.status(200).json({

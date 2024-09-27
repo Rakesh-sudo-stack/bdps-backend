@@ -29,7 +29,8 @@ const adminAuth = (token) => {
             if (auth) {
                 return ({
                     status: 200,
-                    msg: 'Auth success'
+                    msg: 'Auth success',
+                    email: jwt.decode(token).email
                 })
             } else {
                 return ({
@@ -168,7 +169,7 @@ router.post('/', async (req, res) => {
                 const User = new models.admin({ ...req.body, password: hash });
                 const response = User.save();
                 response.then(() => {
-                    console.log(password)
+                    console.log(`${auth.email} has added ${req.body.email}`);
                     let subject = 'BDPS Admin'
                     let body = `
                     <h1>You have been added to BDPS Admin Page</h1>
@@ -222,6 +223,8 @@ router.patch('/:email', async (req, res) => {
 
     async function updatedUser() {
         const updatedUser = await models.admin.updateOne({ email }, { post: req.body.post, permission: req.body.permission }, { new: true })
+        console.log(`${auth.email} has updated ${req.params.email} as - `)
+        console.table(req.body)
         res.status(200).json({
             status: 200,
             msg: 'User updated',
@@ -308,6 +311,7 @@ router.delete('/:email', async (req, res) => {
             // Delete User
             try {
                 let response = await models.admin.deleteOne({ email });
+                console.log(`${auth.email} has removed ${req.params.email}`)
                 res.status(200).json({
                     status: 200,
                     msg: 'Successfully deleted',
@@ -329,10 +333,9 @@ router.delete('/:email', async (req, res) => {
 // LOGIN REQUEST
 router.post('/login', async (req, res) => {
 
-    console.log("Someone tried to login")
-
     const updateToken = async (token) => {
         const updatedUser = await models.admin.updateOne({ email: req.body.email }, { token }, { new: true })
+        console.log(`${req.body.email} has logged in`)
         res.status(200).json({
             status: 200,
             msg: 'Logged In',
@@ -399,6 +402,7 @@ router.post('/logout', async (req, res) => {
     }
 
     res.clearCookie('jwtbdps');
+    console.log(`${auth.email} has logged out`)
     res.status(200).json({
         status: 200,
         msg: 'Logged Out'

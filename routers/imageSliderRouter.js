@@ -39,7 +39,8 @@ const adminAuth = (token) => {
             if (auth) {
                 return ({
                     status: 200,
-                    msg: 'Auth success'
+                    msg: 'Auth success',
+                    email: jwt.decode(token).email
                 })
             } else {
                 return ({
@@ -83,6 +84,7 @@ router.post('/upload', (req, res) => {
                 error: err
             })
         }
+        console.log(`${auth.email} has uploaded image in slider`)
         res.status(200).json({
             status: 200,
             msg: 'Image Added'
@@ -92,15 +94,6 @@ router.post('/upload', (req, res) => {
 })
 
 router.post('/', (req, res) => {
-    let auth = adminAuth(req.cookies.jwtbdps);
-    if (auth.status === 500) {
-        console.log('failed')
-        return res.status(500).json({
-            status: auth.status,
-            msg: auth.msg
-        })
-    }
-
     fs.readdir(path.join(__dirname, '../public/images/'), (err, data) => {
         if (err) {
             res.status(500).json({ status: 500, msg: 'Some error occured', err })
@@ -121,7 +114,6 @@ router.post('/', (req, res) => {
 
         Promise.all(promises)
             .then((images) => {
-                console.log(images.length)
                 res.status(200).json({ status: 200, msg: 'Successfully got', body: images })
             })
             .catch((err) => {
