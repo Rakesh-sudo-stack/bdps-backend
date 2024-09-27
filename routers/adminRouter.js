@@ -2,6 +2,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const sendMail = require('../controllers/sendMail')
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 
 let router = express.Router();
 let models = {};
@@ -19,10 +21,32 @@ setModels();
 // Authorize Admin
 const adminAuth = (token) => {
     try {
+        const readBlacklist = () => {
+            const blacklistFile = path.join(__dirname, './blacklist.txt');
+            if (fs.existsSync(blacklistFile)) {
+                const data = fs.readFileSync(blacklistFile, 'utf-8');
+                const tokens = data.split('\n').filter(Boolean).map(token => token.trim());
+                
+                return tokens;
+            }
+            console.log('Blacklist file does not exist.');
+            return [];
+        };
+        let blackdata = readBlacklist();
+        console.log(blackdata, blackdata.includes(token))
+
+        if (blackdata.length > 0 && blackdata.includes(token)) {
+            return ({
+                status: 500,
+                msg: 'Someone has modified your permissions',
+                modified:true
+            })
+        }
         if (token === undefined) {
             return ({
                 status: 500,
-                msg: 'You are not a valid user'
+                msg: 'You are not a valid user',
+                modified:false
             })
         } else {
             let auth = jwt.verify(token, process.env.JWT_SECRET_KEY);
@@ -30,12 +54,16 @@ const adminAuth = (token) => {
                 return ({
                     status: 200,
                     msg: 'Auth success',
-                    email: jwt.decode(token).email
+                    email: jwt.decode(token).email,
+                    post: jwt.decode(token).post,
+                    permission: jwt.decode(token).permission,
+                    modified:false
                 })
             } else {
                 return ({
                     status: 500,
-                    msg: 'Auth failed'
+                    msg: 'Auth failed',
+                    modified:false
                 })
             }
         }
@@ -43,7 +71,8 @@ const adminAuth = (token) => {
         return ({
             status: 500,
             msg: 'Auth failed',
-            error
+            error,
+            modified:false
         })
     }
 
@@ -89,6 +118,9 @@ function generateRandString(length) {
 // ADMIN LIST REQUEST
 router.get('/', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
@@ -114,6 +146,9 @@ router.get('/', async (req, res) => {
 //ADMIN INFO REQUEST
 router.get('/email/:email', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
@@ -148,13 +183,22 @@ router.get('/email/:email', async (req, res) => {
 // ADD ADMIN REQUEST
 router.post('/', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
             msg: auth.msg
         })
     }
-    console.log(req.body)
+    console.log(auth.post, auth.permission)
+    if (!(auth.post == 'admin' || auth.permission == 'write')) {
+        return res.status(500).json({
+            status: 500,
+            msg: 'You dont have permission to edit'
+        })
+    }
 
     const findUser = await models.admin.find({ email: req.body.email });
 
@@ -214,17 +258,32 @@ router.post('/', async (req, res) => {
 // UPDATE ADMIN REQUEST
 router.patch('/:email', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
             msg: auth.msg
         })
     }
+    const blacklistJwt = (token) => {
+        const blacklistFile = path.join(__dirname, './blacklist.txt');
+        fs.appendFileSync(blacklistFile, `${token}\n`, 'utf8');
+    };
+    console.log(auth.post, auth.permission)
+    if (!(auth.post == 'admin' || auth.permission == 'write')) {
+        return res.status(500).json({
+            status: 500,
+            msg: 'You dont have permission to edit'
+        })
+    }
 
-    async function updatedUser() {
+    async function updatedUser(token) {
         const updatedUser = await models.admin.updateOne({ email }, { post: req.body.post, permission: req.body.permission }, { new: true })
         console.log(`${auth.email} has updated ${req.params.email} as - `)
         console.table(req.body)
+        blacklistJwt(token)
         res.status(200).json({
             status: 200,
             msg: 'User updated',
@@ -254,7 +313,7 @@ router.patch('/:email', async (req, res) => {
             const findUser = await models.admin.find({ email });
             if (findUser.length >= 1) {
 
-                updatedUser();
+                updatedUser(findUser[0].token);
             } else {
                 res.status(500).json({
                     status: 500,
@@ -266,7 +325,7 @@ router.patch('/:email', async (req, res) => {
             res.status(500).json({
                 status: 500,
                 msg: 'Some error occured',
-                error:error
+                error: error
             })
         }
     })
@@ -275,13 +334,22 @@ router.patch('/:email', async (req, res) => {
 //DELETE ADMIN REQUEST
 router.delete('/:email', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
             msg: auth.msg
         })
     }
-
+    console.log(auth.post, auth.permission)
+    if (!(auth.post == 'admin' || auth.permission == 'write')) {
+        return res.status(500).json({
+            status: 500,
+            msg: 'You dont have permission to edit'
+        })
+    }
     checkAdmin(req.cookies.jwtbdps).then(async (isAdmin) => {
         if (isAdmin.status === 500) {
             return res.status(500).json({
@@ -343,8 +411,8 @@ router.post('/login', async (req, res) => {
         })
     }
 
-    const generateAuthToken = async () => {
-        const token = jwt.sign({ email: req.body.email }, process.env.JWT_SECRET_KEY);
+    const generateAuthToken = async (post, permission) => {
+        const token = jwt.sign({ email: req.body.email, post, permission }, process.env.JWT_SECRET_KEY);
         res.cookie('jwtbdps', token, { maxAge: 2400000, httpOnly: true })
         return token;
     }
@@ -368,7 +436,7 @@ router.post('/login', async (req, res) => {
             if (result) {
 
                 try {
-                    let token = generateAuthToken().then((token) => {
+                    let token = generateAuthToken(findUser[0].post, findUser[0].permission).then((token) => {
                         updateToken(token)
                     });
                 } catch (error) {
@@ -394,6 +462,9 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
@@ -412,6 +483,9 @@ router.post('/logout', async (req, res) => {
 
 router.post('/auth', (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 200) {
         res.status(200).json({
             status: auth.status,
@@ -427,6 +501,9 @@ router.post('/auth', (req, res) => {
 
 router.post('/jwt/decode', (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
@@ -452,6 +529,9 @@ router.post('/jwt/decode', (req, res) => {
 
 router.post('/change-pass', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
@@ -497,7 +577,8 @@ router.post('/change-pass', async (req, res) => {
     });
 })
 
-router.post('/forgot-pass', async (req, res) => {let email = req.body.email;
+router.post('/forgot-pass', async (req, res) => {
+    let email = req.body.email;
     const findUser = await models.admin.find({ email });
     if (findUser.length <= 0) {
         return res.status(500).json({
@@ -544,6 +625,9 @@ router.post('/forgot-pass', async (req, res) => {let email = req.body.email;
 
 router.post('/change-name', async (req, res) => {
     let auth = adminAuth(req.cookies.jwtbdps);
+    if(auth.modified){
+        res.clearCookie('jwtbdps')
+    }
     if (auth.status === 500) {
         return res.status(500).json({
             status: auth.status,
